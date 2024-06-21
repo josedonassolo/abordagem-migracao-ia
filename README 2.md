@@ -1,1 +1,0 @@
-# TCC2-PipelineIA
