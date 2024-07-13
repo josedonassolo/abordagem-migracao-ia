@@ -2,55 +2,55 @@ import pandas as pd
 import psycopg2
 from sqlalchemy import create_engine
 
+# Dados de conexão com a base de origem
+orig_host = ""
+orig_port = ""
+orig_dbname = ""
+orig_user = ""
+orig_password = ""
 
-# Informações da base de origem
-source_config = {
-    "host": "",
-    "port": "",
-    "dbname": "",
-    "user": "",
-    "password": ""
-}
+# Dados de conexão com a base de destino
+dest_host = "127.0.0.1"
+dest_port = "5432"
+dest_dbname = "postgres"
+dest_user = "postgres"
+dest_password = ""
 
-# Conexão com o banco de dados de origem
-source_conn_str = f"postgresql://{source_config['user']}:{source_config['password']}@{source_config['host']}:{source_config['port']}/{source_config['dbname']}"
-source_engine = create_engine(source_conn_str)
-
-# SQL para extrair os dados
-query = """
-SELECT "idlocalestoque" AS "nk_local_estoque", initcap("descrlocal") AS "ds_local_estoque"
-FROM "local_estoque"
+# Query SQL
+sql_query = """
+SELECT 
+    "n"."idplanilha" AS "nk_nota_fiscal",
+    "n"."numnota" AS "nr_nota_fiscal",
+    "n"."serienota" AS "ds_serie_nota_fiscal"
+FROM 
+    "nota" AS "n"
+WHERE 
+    "n"."dtmovimento" >= '2023-01-01' AND "n"."dtmovimento" <= '2023-12-31';
 """
 
-# Carregando dados para um DataFrame
-df = pd.read_sql(query, source_engine)
+# Conectar à base de dados de origem e extrair os dados
+conn_orig = psycopg2.connect(
+    dbname=orig_dbname, user=orig_user, password=orig_password, host=orig_host, port=orig_port
+)
+df = pd.read_sql(sql_query, conn_orig)
+conn_orig.close()
 
-### Passo 2: Conectar ao banco de destino e preparar a tabela
+# Conectar à base de dados de destino
+conn_dest = psycopg2.connect(
+    dbname=dest_dbname, user=dest_user, password=dest_password, host=dest_host, port=dest_port
+)
+cursor = conn_dest.cursor()
 
-# Informações da base de destino
-destination_config = {
-    "host": "127.0.0.1",
-    "port": "5432",
-    "dbname": "postgres",
-    "user": "postgres",
-    "password": ""
-}
+# Limpar a tabela de destino
+cursor.execute("DELETE FROM dw_ia.dim_nota_fiscal")
+conn_dest.commit()
 
-# Conexão com o banco de dados de destino
-destination_conn_str = f"postgresql://{destination_config['user']}:{destination_config['password']}@{destination_config['host']}:{destination_config['port']}/{destination_config['dbname']}"
-destination_engine = create_engine(destination_conn_str)
+# Usar o SQLAlchemy para criar um engine para inserção de dados
+engine = create_engine(f'postgresql://{dest_user}:{dest_password}@{dest_host}:{dest_port}/{dest_dbname}')
+df.to_sql('dim_nota_fiscal', engine, schema='dw_ia', if_exists='append', index=False)
 
-# Criando conexão para usar o cursor
-conn = psycopg2.connect(destination_conn_str)
-cursor = conn.cursor()
+# Fechar as conexões
+conn_dest.close()
+engine.dispose()
 
-# Excluindo dados existentes na tabela de destino
-cursor.execute("DELETE FROM dw_ia.dim_local_estoque")
-conn.commit()  # Importante para que as mudanças sejam aplicadas
-cursor.close()
-conn.close()
-
-### Passo 3: Inserir os dados transformados na tabela de destino
-
-# Inserindo dados no banco de destino
-df.to_sql('dim_local_estoque', destination_engine, schema='dw_ia', if_exists='append', index=False)
+print("Dados transferidos com sucesso.")

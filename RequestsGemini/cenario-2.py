@@ -33,6 +33,9 @@ agent_executor = create_sql_agent(
     verbose=True
 )
 
+#db_chain = SQLDatabaseChain.from_llm(llm, db, verbose=True)
+#response = db_chain.run("Retorne o texto do SQLQuery para uma consulta que busque os dados de nome do produto, relacionando com o preco e a empresa desse preco")
+
 from langchain.chains import create_sql_query_chain
 
 chain = create_sql_query_chain(llm, db)
@@ -40,11 +43,10 @@ chain = create_sql_query_chain(llm, db)
 
 solicitacao = f'''
 Retorne o texto do SQLQuery para uma consulta que busque as colunas com os dados:
-planilha da nota fiscal renomeando para nk_nota_fiscal
-numero da nota fiscal renomeando pora nr_nota_fiscal
-serie da nota fiscal renomeando para ds_serie_nota_fiscal
-
-Busque apenas dados do período de 2023
+Codigo da empresa nomeando como nk_empresa
+Nome da empresa nomeando como ds_razao_social
+nome da cidade renomeando como ds_nome_cidade
+Estado da cidade nomeando como ds_uf
 '''
 
 
@@ -70,12 +72,12 @@ senha_destino = ''
 usuario_destino = 'postgres'
 
 
-nome_tabela = 'dim_nota_fiscal'
+nome_tabela = 'dim_empresa'
 
 input_ia = f'''Com base nesse código: {sql}. Gere uma pipeline de dados em python utilizando pandas que insira estes dados em uma base de destino com os seguintes dados de acesso, 
 host: {host_destino}, port: {port_destino}, dbname: {db_destino}, user: {usuario_destino} senha: {senha_destino}, a tabela de destino é a {nome_tabela} no shcema dw_ia.
 Os dados da base de origem são os seguintes: host: {db_host}, port: {db_port}, dbname: {db_name}, user: {db_user} senha: {db_password}
-Antes de inserir os dados na tabela, é necessário deletar os dados já existentes nela utilizando um cursor  do psycopg2 para deletar os dados
+Para buscar os dados na tabela, utilize a função de conexão create_engine da biblioteca sqlalchemy. Antes de inserir os dados na tabela, é necessário deletar os dados já existentes nela utilizando um cursor  do psycopg2 para deletar os dados
 '''
 
 

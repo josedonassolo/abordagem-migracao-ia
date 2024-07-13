@@ -1,7 +1,7 @@
 import pandas as pd
 import psycopg2
 
-# Estabelecer conexão com o banco de dados de origem
+# Conexão com a base de dados de origem
 conn_origem = psycopg2.connect(
     host="",
     port="",
@@ -10,39 +10,46 @@ conn_origem = psycopg2.connect(
     password="",
 )
 
-# Executar consulta SQL para obter dados da tabela de origem
-df = pd.read_sql_query(
-    """
-    SELECT "idlocalestoque" AS "nk_local_estoque", "descrlocal" AS "ds_local_estoque"
-    FROM "local_estoque"
-    ORDER BY "idlocalestoque";
-    """,
-    con=conn_origem,
-)
+# Consulta SQL para obter os dados da base de origem
+sql = """
+SELECT 
+  "idplanilha" AS "nk_nota_fiscal", 
+  "numnota" AS "nr_nota_fiscal", 
+  "serienota" AS "ds_serie_nota_fiscal" 
+FROM 
+  "nota" 
+WHERE 
+  "dtmovimento" >= '2023-01-01' 
+  AND "dtmovimento" <= '2023-12-31';
+"""
 
-# Fechar conexão com o banco de dados de origem
+# Lê os dados da base de origem para um DataFrame do Pandas
+df = pd.read_sql(sql, conn_origem)
+
+# Fecha a conexão com a base de origem
 conn_origem.close()
 
-# Estabelecer conexão com o banco de dados de destino
+# Conexão com a base de dados de destino
 conn_destino = psycopg2.connect(
     host="127.0.0.1",
-    port="5432",
+    port=5432,
     dbname="postgres",
     user="postgres",
     password="",
 )
 
-# Criar cursor para deletar dados existentes na tabela de destino
-cur = conn_destino.cursor()
+# Cria um cursor para deletar os dados existentes na tabela de destino
+cursor = conn_destino.cursor()
 
-# Deletar dados existentes na tabela de destino
-cur.execute("DELETE FROM dw_ia.dim_local_estoque")
+# Deleta os dados existentes na tabela de destino
+cursor.execute("DELETE FROM dw_ia.dim_nota_fiscal")
 
-# Confirmar alterações
+# Confirma a deleção
 conn_destino.commit()
 
-# Fechar cursor
-cur.close()
+# Insere os dados do DataFrame do Pandas na tabela de destino
+df.to_sql("dim_nota_fiscal", conn_destino, schema="dw_ia", if_exists="append")
 
-# Inserir dados na tabela de destino
-df.to_sql("dim_local_estoque", con=conn_destino, schema="dw_ia", if_exists="append", index=False)
+# Fecha o cursor e a conexão com a base de dados de destino
+cursor.close()
+conn_destino.close()
