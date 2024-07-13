@@ -1,48 +1,53 @@
 import pandas as pd
-import sqlalchemy
+import psycopg2
 
-# Conexão com a base de dados de origem
-host_origem = ''
-port_origem = 15445
-dbname_origem = ''
-user_origem = ''
-password_origem = ''
+# Estabelece uma conexão com o banco de dados de origem
+conn_origem = psycopg2.connect(
+    host="",
+    port=0,
+    dbname="",
+    user="",
+    password="",
+)
 
-# Conexão com a base de dados de destino
-host_destino = '127.0.0.1'
-port_destino = 5432
-dbname_destino = 'postgres'
-user_destino = 'postgres'
-password_destino = ''
-
-# Query para selecionar os dados da base de origem
+# Executa a consulta SQL no banco de dados de origem
 query = """
-SELECT
-  "e"."idempresa" AS "nk_empresa",
-  "e"."razaosocial" AS "ds_razao_social",
-  "c"."descrcidade" AS "ds_nome_cidade",
-  "c"."uf" AS "ds_uf"
-FROM "empresa" AS "e"
-JOIN "cidade" AS "c"
-  ON "e"."idcidade" = "c"."idcidade";
+SELECT "estoque_analitico"."idplanilha" || "estoque_analitico"."numsequencia" AS "nk_produto_movimento",
+       "estoque_analitico"."idproduto" AS "nk_produto",
+       "estoque_analitico"."idempresa" AS "nk_empresa",
+       "estoque_analitico"."idlocalestoque" AS "nk_local_estoque",
+       "nota"."idplanilha" AS "nk_nota_fiscal",
+       "estoque_analitico"."idoperacao" AS "nk_operacao",
+       "nota"."idclifor" AS "nk_pessoa",
+       "estoque_analitico"."valtotliquido" AS "vl_total_liquido",
+       "estoque_analitico"."qtdproduto" AS "vl_qtd_produto",
+       "estoque_analitico"."dtmovimento" AS "dt_movimento"
+FROM "estoque_analitico"
+JOIN "nota" ON "estoque_analitico"."idempresa" = "nota"."idempresa"
+WHERE "estoque_analitico"."dtmovimento" >= date('now', '-2 months')
 """
+df = pd.read_sql_query(query, conn_origem)
 
-# Estabelecendo a conexão com a base de origem
-conn_origem = sqlalchemy.create_engine(
-    f'postgresql://{user_origem}:{password_origem}@{host_origem}:{port_origem}/{dbname_origem}'
+# Fecha a conexão com o banco de dados de origem
+conn_origem.close()
+
+# Estabelece uma conexão com o banco de dados de destino
+conn_destino = psycopg2.connect(
+    host="127.0.0.1",
+    port=5432,
+    dbname="postgres",
+    user="postgres",
+    password="",
 )
 
-# Lendo os dados da base de origem
-df = pd.read_sql(query, conn_origem)
+# Cria um cursor para deletar os dados existentes na tabela de destino
+cursor = conn_destino.cursor()
+cursor.execute("DELETE FROM dw_ia.dim_produto")
+conn_destino.commit()
 
-# Estabelecendo a conexão com a base de destino
-conn_destino = sqlalchemy.create_engine(
-    f'postgresql://{user_destino}:{password_destino}@{host_destino}:{port_destino}/{dbname_destino}'
-)
+# Insere os dados no banco de dados de destino
+df.to_sql("dim_produto", conn_destino, schema="dw_ia", if_exists="append", index=False)
 
-# Deletando os dados existentes na tabela de destino
-df.to_sql('dim_empresa', conn_destino, schema='dw_ia', if_exists='replace', index=False)
-
-# Fechando as conexões
-conn_origem.dispose()
-conn_destino.dispose()
+# Fecha a conexão com o banco de dados de destino
+conn_destino.close()
+#%%

@@ -33,9 +33,6 @@ agent_executor = create_sql_agent(
     verbose=True
 )
 
-#db_chain = SQLDatabaseChain.from_llm(llm, db, verbose=True)
-#response = db_chain.run("Retorne o texto do SQLQuery para uma consulta que busque os dados de nome do produto, relacionando com o preco e a empresa desse preco")
-
 from langchain.chains import create_sql_query_chain
 
 chain = create_sql_query_chain(llm, db)
@@ -43,8 +40,11 @@ chain = create_sql_query_chain(llm, db)
 
 solicitacao = f'''
 Retorne o texto do SQLQuery para uma consulta que busque as colunas com os dados:
-codigo do local de estoque renomeando como nk_local_estoque
-nome do local de estoque renomeando como ds_local_estoque
+planilha da nota fiscal renomeando para nk_nota_fiscal
+numero da nota fiscal renomeando pora nr_nota_fiscal
+serie da nota fiscal renomeando para ds_serie_nota_fiscal
+
+Busque apenas dados do período de 2023
 '''
 
 
@@ -70,7 +70,7 @@ senha_destino = ''
 usuario_destino = 'postgres'
 
 
-nome_tabela = 'dim_local_estoque'
+nome_tabela = 'dim_nota_fiscal'
 
 input_ia = f'''Com base nesse código: {sql}. Gere uma pipeline de dados em python utilizando pandas que insira estes dados em uma base de destino com os seguintes dados de acesso, 
 host: {host_destino}, port: {port_destino}, dbname: {db_destino}, user: {usuario_destino} senha: {senha_destino}, a tabela de destino é a {nome_tabela} no shcema dw_ia.
@@ -88,5 +88,3 @@ codigo = llm.invoke(
     ]
 )
 print(codigo)
-
-#%%

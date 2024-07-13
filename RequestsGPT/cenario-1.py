@@ -44,8 +44,11 @@ chain = create_sql_query_chain(llm, db)
 
 solicitacao = f'''
 Retorne o texto do SQLQuery para uma consulta que busque as colunas com os dados:
-codigo do local de estoque renomeando como nk_local_estoque
-nome do local de estoque renomeando como ds_local_estoque
+planilha da nota fiscal renomeando para nk_nota_fiscal
+numero da nota fiscal renomeando pora nr_nota_fiscal
+serie da nota fiscal renomeando para ds_serie_nota_fiscal
+
+Busque apenas dados do período de 2023
 '''
 
 
@@ -74,12 +77,14 @@ usuario_destino = 'postgres'
 
 chat = ChatOpenAI(model_name="gpt-4-turbo")
 
-nome_tabela = 'dim_local_estoque'
+nome_tabela = 'dim_nota_fiscal'
 
-input_ia = f'''Com base nesse código: {sql}. Gere uma pipeline de dados em python utilizando pandas que insira estes dados em uma base de destino com os seguintes dados de acesso, 
-host: {host_destino}, port: {port_destino}, dbname: {db_destino}, user: {usuario_destino} senha: {senha_destino}, a tabela de destino é a {nome_tabela} no shcema dw_ia.
+input_ia = f'''
+Com base nesse código: {sql}. Gere uma pipeline de dados em python utilizando pandas que insira estes dados em uma base de destino com os seguintes dados de acesso: 
+host: {host_destino}, port: {port_destino}, dbname: {db_destino}, user: {usuario_destino} senha: {senha_destino}
 Os dados da base de origem são os seguintes: host: {db_host}, port: {db_port}, dbname: {db_name}, user: {db_user} senha: {db_password}
-Para buscar os dados na tabela, utilize a função de conexão create_engine da biblioteca sqlalchemy. Antes de inserir os dados na tabela, é necessário deletar os dados já existentes nela utilizando um cursor  do psycopg2 para deletar os dados. 
+A tabela de destino é em que os dados do SQL devem ser inseridos é a {nome_tabela} no shcema dw_ia.
+Antes de inserir os dados na tabela, é necessário deletar os dados já existentes nela utilizando um cursor  do psycopg2 para deletar os dados.
 '''
 
 from langchain_core.messages import HumanMessage
@@ -90,6 +95,3 @@ chat.invoke(
         )
     ]
 ).pretty_print()
-
-
-#%%

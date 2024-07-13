@@ -2,55 +2,59 @@ import pandas as pd
 import psycopg2
 from sqlalchemy import create_engine
 
-# Dados de conexão com a base de origem
-orig_host = ""
-orig_port = ""
-orig_dbname = ""
-orig_user = ""
-orig_password = ""
+# Informações do banco de dados de origem
+origem_db_config = {
+    "host": "",
+    "port": "",
+    "dbname": "",
+    "user": "",
+    "password": ""
+}
 
-# Dados de conexão com a base de destino
-dest_host = "127.0.0.1"
-dest_port = "5432"
-dest_dbname = "postgres"
-dest_user = "postgres"
-dest_password = ""
+# Informações do banco de dados de destino
+destino_db_config = {
+    "host": "127.0.0.1",
+    "port": "5432",
+    "dbname": "postgres",
+    "user": "postgres",
+    "password": ""
+}
 
-# Query SQL
-sql_query = """
-SELECT 
-    "n"."idplanilha" AS "nk_nota_fiscal",
-    "n"."numnota" AS "nr_nota_fiscal",
-    "n"."serienota" AS "ds_serie_nota_fiscal"
-FROM 
-    "nota" AS "n"
-WHERE 
-    "n"."dtmovimento" >= '2023-01-01' AND "n"."dtmovimento" <= '2023-12-31';
+# Conexão com o banco de dados de origem
+conn_origem = psycopg2.connect(**origem_db_config)
+
+# Query para extração de dados
+query = """
+SELECT empresa.idempresa AS nk_empresa,
+       initcap(empresa.razaosocial) AS ds_razao_social,
+       initcap(cidade.descrcidade) AS ds_nome_cidade,
+       cidade.uf AS ds_uf
+FROM empresa
+JOIN cidade ON empresa.idcidade = cidade.idcidade;
 """
 
-# Conectar à base de dados de origem e extrair os dados
-conn_orig = psycopg2.connect(
-    dbname=orig_dbname, user=orig_user, password=orig_password, host=orig_host, port=orig_port
-)
-df = pd.read_sql(sql_query, conn_orig)
-conn_orig.close()
+# Carrega os dados em um DataFrame
+df = pd.read_sql(query, conn_origem)
 
-# Conectar à base de dados de destino
-conn_dest = psycopg2.connect(
-    dbname=dest_dbname, user=dest_user, password=dest_password, host=dest_host, port=dest_port
-)
-cursor = conn_dest.cursor()
+# Fecha a conexão de origem
+conn_origem.close()
 
-# Limpar a tabela de destino
-cursor.execute("DELETE FROM dw_ia.dim_nota_fiscal")
-conn_dest.commit()
+# Conexão com o banco de dados de destino
+conn_destino = psycopg2.connect(**destino_db_config)
+cursor = conn_destino.cursor()
 
-# Usar o SQLAlchemy para criar um engine para inserção de dados
-engine = create_engine(f'postgresql://{dest_user}:{dest_password}@{dest_host}:{dest_port}/{dest_dbname}')
-df.to_sql('dim_nota_fiscal', engine, schema='dw_ia', if_exists='append', index=False)
+# Limpa os dados da tabela de destino antes de inserir novos dados
+cursor.execute("DELETE FROM dw_ia.dim_empresa")
+conn_destino.commit()
 
-# Fechar as conexões
-conn_dest.close()
-engine.dispose()
+# Cria um engine para usar com pandas to_sql
+engine_str = f"postgresql+psycopg2://{destino_db_config['user']}:{destino_db_config['password']}@{destino_db_config['host']}:{destino_db_config['port']}/{destino_db_config['dbname']}"
+engine = create_engine(engine_str)
 
-print("Dados transferidos com sucesso.")
+# Insere os dados no banco de destino
+df.to_sql('dim_empresa', engine, schema='dw_ia', if_exists='append', index=False)
+
+# Fecha a conexão de destino
+conn_destino.close()
+
+print("Dados transferidos com sucesso!")

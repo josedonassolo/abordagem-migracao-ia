@@ -42,11 +42,19 @@ chain = create_sql_query_chain(llm, db)
 
 
 solicitacao = f'''
-Retorne o texto do SQLQuery para uma consulta que busque as colunas com os dados:
-Codigo da empresa nomeando como nk_empresa
-Nome da empresa nomeando como ds_razao_social
-nome da cidade renomeando como ds_nome_cidade
-Estado da cidade nomeando como ds_uf
+Levando também em consideração o dicionário acima retorne o texto do SQLQuery para uma consulta que busque as colunas com os dados:
+planilha do movimento concatenada com o numsequencia renomeando como nk_produto_movimento
+código do produto renomeando como nk_produto
+código da empresa renomeando como nk_empresa
+código do local de estoque renomeando como nk_local_estoque
+planilha do lançamento renomeando como nk_nota_fiscal
+código da operação renomeando como nk_operacao
+código da pessoa nomeando como nk_pessoa
+valor total liquido nomeando como vl_total_liquido
+quantidade nomeando como vl_qtd_produto
+data de movimento renomeando como dt_movimento
+
+Buscar apenas dados dos ultimos 2 meses
 '''
 
 
@@ -72,12 +80,12 @@ senha_destino = ''
 usuario_destino = 'postgres'
 
 
-nome_tabela = 'dim_empresa'
+nome_tabela = 'dim_produto'
 
 input_ia = f'''Com base nesse código: {sql}. Gere uma pipeline de dados em python utilizando pandas que insira estes dados em uma base de destino com os seguintes dados de acesso, 
 host: {host_destino}, port: {port_destino}, dbname: {db_destino}, user: {usuario_destino} senha: {senha_destino}, a tabela de destino é a {nome_tabela} no shcema dw_ia.
 Os dados da base de origem são os seguintes: host: {db_host}, port: {db_port}, dbname: {db_name}, user: {db_user} senha: {db_password}
-Para buscar os dados na tabela, utilize a função de conexão create_engine da biblioteca sqlalchemy. Antes de inserir os dados na tabela, é necessário deletar os dados já existentes nela utilizando um cursor  do psycopg2 para deletar os dados
+Antes de inserir os dados na tabela, é necessário deletar os dados já existentes nela utilizando um cursor  do psycopg2 para deletar os dados.
 '''
 
 
